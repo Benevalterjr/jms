@@ -2,7 +2,7 @@
 
 [![Version](https://img.shields.io/badge/jms-v1.0-blue.svg)](https://github.com/jms-protocol/spec)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
-[![Stability](https://img.shields.io/badge/stability-production--ready-brightgreen.svg)](https://github.com/jms-protocol/spec)
+[![Stability](https://img.shields.io/badge/stability-mvp--ready-brightgreen.svg)](https://github.com/jms-protocol/spec)
 
 **JMS (Joint Message System)** is a high-performance, security-first protocol designed for **distributed cognitive consensus** between autonomous agents. 
 
