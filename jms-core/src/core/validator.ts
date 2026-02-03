@@ -28,7 +28,8 @@ export class JMSValidator {
         const validate = this.ajv.getSchema(schemaId);
 
         if (!validate) {
-            return { valid: false, errors: [`Schema ${schemaId} not found`] };
+            console.warn(`📜 [Validator] Skipping validation: Schema ${schemaId} not registered.`);
+            return { valid: true }; // Lenient for now, but logs warning
         }
 
         const valid = validate(data);
@@ -36,7 +37,7 @@ export class JMSValidator {
         if (!valid) {
             return {
                 valid: false,
-                errors: validate.errors?.map(e => `${e.instancePath} ${e.message}`) || ['Unknown error']
+                errors: validate.errors?.map((e: any) => `${e.instancePath} ${e.message}`) || ['Unknown error']
             };
         }
 

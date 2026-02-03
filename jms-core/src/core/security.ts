@@ -23,9 +23,23 @@ export class SecurityUtils {
      * (message without security field)
      */
     static calculateHash(message: any): string {
-        const canonical = JSON.stringify(message, Object.keys(message).sort());
+        const canonical = JSON.stringify(this.sortObject(message));
         const hash = crypto.createHash('sha256').update(canonical).digest('hex');
         return `sha256:${hash}`;
+    }
+
+    /**
+     * Recursively sort object keys for canonical representation
+     */
+    private static sortObject(obj: any): any {
+        if (obj === null || typeof obj !== 'object') return obj;
+        if (Array.isArray(obj)) return obj.map(item => this.sortObject(item));
+
+        const sorted: any = {};
+        Object.keys(obj).sort().forEach(key => {
+            sorted[key] = this.sortObject(obj[key]);
+        });
+        return sorted;
     }
 
     /**

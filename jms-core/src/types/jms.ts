@@ -55,6 +55,7 @@ export interface MessageParams {
     evolution?: OpinionState[];
     deadline_ms?: number;
     quorum?: QuorumConfig;
+    epsilon?: ErrorInfo;
 }
 
 // Domain types moved to domain-specific files (e.g. examples/domain_types.ts)

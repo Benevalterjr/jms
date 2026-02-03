@@ -3,6 +3,9 @@ import { JMSMessageBuilder } from '../../../jms-core/src/core/message';
 import { ConsensusEngine } from '../../../jms-core/src/core/consensus';
 import { IJMTSTransport } from '../../../jms-transport/src/transport';
 import { CognitiveAggregator } from '../../../jms-learning/src/learning/aggregator';
+import { JMSValidator } from '../../../jms-core/src/core/validator';
+
+import { SecurityUtils } from '../../../jms-core/src/core/security';
 
 export interface AgentCConfig {
     agentId?: string;
@@ -37,6 +40,23 @@ export class AgentC {
     }
 
     private async processConsensus(message: JMSMessage) {
+        // 1. Integrity Verification
+        if (!SecurityUtils.verifyHash(message, message.security.hash)) {
+            console.error(`🔒 [AgentC] Security Alert: Hash mismatch detected on consensus request!`);
+            const error = JMSMessageBuilder.createError(this.agentId, message, 'JMS-403', 'Integrity check failed');
+            await this.transport.send(message.agent, error);
+            return;
+        }
+
+        // 2. Schema Validation (Consensus Payload)
+        const validation = JMSValidator.validate(message.schema, message.data);
+        if (!validation.valid) {
+            console.warn(`⚠️ [AgentC] Validation Error: ${validation.errors?.join(', ')}`);
+            const error = JMSMessageBuilder.createError(this.agentId, message, 'JMS-422', validation.errors?.join(', ') || 'Schema validation failed');
+            await this.transport.send(message.agent, error);
+            return;
+        }
+
         const analyses = message.data as JMSMessage[];
 
         // Use CognitiveAggregator from jms-learning to get adjustments
@@ -60,9 +80,10 @@ export class AgentC {
             message,
             decisionResult,
             confidence,
-            message.schema // Maintain schema continuity
+            message.schema,
+            undefined, // no evolution for C
+            'k=2'
         );
-        response.τ = 'k=2';
 
         await this.transport.send(message.agent, response);
     }

@@ -2,6 +2,7 @@ import { JMSMessage } from '../../../jms-core/src/types/jms';
 import { JMSMessageBuilder } from '../../../jms-core/src/core/message';
 import { IJMTSTransport } from '../../../jms-transport/src/transport';
 import { JMSValidator } from '../../../jms-core/src/core/validator';
+import { SecurityUtils } from '../../../jms-core/src/core/security';
 
 export abstract class BaseAgentB<T = any> {
     protected abstract agentId: string;
@@ -20,6 +21,24 @@ export abstract class BaseAgentB<T = any> {
     }
 
     protected async processRequest(message: JMSMessage) {
+        // 1. Integrity Verification
+        const isValidHash = SecurityUtils.verifyHash(message, message.security.hash);
+        if (!isValidHash) {
+            console.error(`🔒 [${this.agentId}] Security Alert: Hash mismatch detected!`);
+            const error = JMSMessageBuilder.createError(this.agentId, message, 'JMS-403', 'Integrity check failed');
+            await this.transport.send(message.agent, error);
+            return;
+        }
+
+        // 2. Schema Validation
+        const validation = JMSValidator.validate(message.schema, message.data);
+        if (!validation.valid) {
+            console.warn(`⚠️ [${this.agentId}] Validation Error: ${validation.errors?.join(', ')}`);
+            const error = JMSMessageBuilder.createError(this.agentId, message, 'JMS-422', validation.errors?.join(', ') || 'Schema validation failed');
+            await this.transport.send(message.agent, error);
+            return;
+        }
+
         const data = message.data as T;
         const { result, evolution } = await this.analyze(data);
 
@@ -28,7 +47,7 @@ export abstract class BaseAgentB<T = any> {
             message,
             result,
             this.lambda,
-            message.schema, // Reuse incoming schema or provide default
+            message.schema,
             evolution
         );
 

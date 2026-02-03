@@ -2,6 +2,7 @@ import { JMSMessage, ConsensusResult } from '../../../jms-core/src/types/jms';
 import { JMSMessageBuilder } from '../../../jms-core/src/core/message';
 import { IJMTSTransport } from '../../../jms-transport/src/transport';
 import { JMSValidator } from '../../../jms-core/src/core/validator';
+import { SecurityUtils } from '../../../jms-core/src/core/security';
 
 export class AgentA {
     private agentId = 'AgentA';
@@ -13,6 +14,13 @@ export class AgentA {
 
         this.transport.register(this.agentId, async (messageStr: string) => {
             const message: JMSMessage = JSON.parse(messageStr);
+
+            // 1. Verify Integrity
+            if (!SecurityUtils.verifyHash(message, message.security.hash)) {
+                console.error(`🔒 [AgentA] Security Alert: Received message with invalid hash! From: ${message.agent}`);
+                return; // Drop malicious message
+            }
+
             if (message.Ω !== 'consensus') {
                 this.responses.push(message);
             } else if (message.data && message.data.decision) {

@@ -24,7 +24,7 @@ export class JMSMessageBuilder {
             evolution: params.evolution,
             deadline_ms: params.deadline_ms || 3000,
             quorum: params.quorum || { expected: 3, minimum: 2 },
-            ε: null
+            ε: params.epsilon || null
         };
 
         // Generate security context
@@ -62,7 +62,7 @@ export class JMSMessageBuilder {
     /**
      * Create a response to a specific request
      */
-    static createResponse(agent: string, request: JMSMessage, data: any, lambda: number, schema: string, evolution?: any[]): JMSMessage {
+    static createResponse(agent: string, request: JMSMessage, data: any, lambda: number, schema: string, evolution?: any[], tau?: string): JMSMessage {
         return this.create({
             ref: request.ref,
             agent,
@@ -71,7 +71,7 @@ export class JMSMessageBuilder {
             data,
             schema,
             lambda,
-            tau: 'k=1',
+            tau: tau || 'k=1',
             evolution
         });
     }
@@ -96,7 +96,7 @@ export class JMSMessageBuilder {
      * Create an error message (ε)
      */
     static createError(agent: string, request: JMSMessage, code: string, message: string): JMSMessage {
-        const errorMsg = this.create({
+        return this.create({
             ref: request.ref,
             agent,
             domain: 'Core::Error',
@@ -104,14 +104,13 @@ export class JMSMessageBuilder {
             data: {},
             schema: 'jms.core.error.v1',
             lambda: 0.0,
-            tau: 'k=1'
+            tau: request.τ,
+            epsilon: {
+                code,
+                message,
+                severity: 'ERROR'
+            }
         });
-        errorMsg.ε = {
-            code,
-            message,
-            severity: 'ERROR'
-        };
-        return errorMsg;
     }
 
     /**
