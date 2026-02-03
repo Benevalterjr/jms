@@ -35,24 +35,36 @@ export class AgentA {
         agentsB: string[],
         agentC: string,
         domain: string = 'Generic::Task',
-        schema: string = 'jms.generic.task.v1'
+        schema: string = 'jms.generic.task.v1',
+        quorumOverride?: { expected: number, minimum: number }
     ): Promise<void> {
         this.responses = [];
-        const request = JMSMessageBuilder.createRequest(
-            this.agentId,
+        const request = JMSMessageBuilder.create({
+            ref: `task#${SecurityUtils.generateNonce().substring(0, 8)}`,
+            agent: this.agentId,
             domain,
-            'analysis',
+            operation: 'analysis',
             data,
-            schema
-        );
+            schema,
+            lambda: 1.0,
+            tau: 'k=1',
+            quorum: quorumOverride || { expected: agentsB.length, minimum: Math.ceil(agentsB.length / 2) }
+        });
 
         await this.transport.broadcast(agentsB, request);
 
         // Wait for quorum (with timeout)
         const deadline = request.deadline_ms || 3000;
         const start = Date.now();
-        while (this.responses.length < request.quorum.expected && (Date.now() - start) < deadline) {
-            await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Dynamic wait logic: Finish as soon as we hit EXPECTED, or timeout if we at least hit MINIMUM
+        while ((Date.now() - start) < deadline) {
+            if (this.responses.length >= request.quorum.expected) break;
+
+            // Optional: If in real-time mode, we could break at 'minimum' too
+            // if (this.responses.length >= request.quorum.minimum && SecurityUtils.currentLevel === SecurityLevel.NONE) break;
+
+            await new Promise(resolve => setTimeout(resolve, 10)); // Faster polling for perf
         }
 
         if (this.responses.length >= request.quorum.minimum) {

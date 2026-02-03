@@ -1,9 +1,17 @@
 import * as crypto from 'crypto';
 
+export enum SecurityLevel {
+    FULL = 'FULL',   // Hash verification + Strict
+    LIGHT = 'LIGHT',  // Basic checksum or skip
+    NONE = 'NONE'    // Pure speed
+}
+
 /**
  * Security utilities for JMS messages
  */
 export class SecurityUtils {
+    public static currentLevel: SecurityLevel = SecurityLevel.FULL;
+
     /**
      * Generate a random nonce
      */
@@ -46,7 +54,14 @@ export class SecurityUtils {
      * Verify message hash
      */
     static verifyHash(message: any, expectedHash: string): boolean {
+        if (this.currentLevel === SecurityLevel.NONE) return true;
+
         const { security, ...messageWithoutSecurity } = message;
+
+        if (this.currentLevel === SecurityLevel.LIGHT) {
+            return !!expectedHash;
+        }
+
         const calculatedHash = this.calculateHash(messageWithoutSecurity);
         return calculatedHash === expectedHash;
     }

@@ -8,7 +8,9 @@ export abstract class BaseAgentB<T = any> {
     protected abstract agentId: string;
     protected abstract lambda: number;
     protected transport: IJMTSTransport;
-    protected isStrict: boolean = false; // Default to lenient for demos
+    protected isStrict: boolean = false;
+    protected performanceMode: boolean = false; // Set to true to enable validation caching
+    private static validatedRefs = new Set<string>();
 
     constructor(transport: IJMTSTransport) {
         this.transport = transport;
@@ -31,13 +33,20 @@ export abstract class BaseAgentB<T = any> {
             return;
         }
 
-        // 2. Schema Validation
-        const validation = JMSValidator.validate(message.schema, message.data, this.isStrict);
-        if (!validation.valid) {
-            console.warn(`⚠️ [${this.agentId}] Validation Error: ${validation.errors?.join(', ')}`);
-            const error = JMSMessageBuilder.createError(this.agentId, message, 'JMS-422', validation.errors?.join(', ') || 'Schema validation failed');
-            await this.transport.send(message.agent, error);
-            return;
+        // 2. Schema Validation (with Performance Optimization)
+        let isValid = true;
+        if (this.performanceMode && BaseAgentB.validatedRefs.has(message.ref)) {
+            // Fast-Path: Already validated this process ref
+            isValid = true;
+        } else {
+            const validation = JMSValidator.validate(message.schema, message.data, this.isStrict);
+            if (!validation.valid) {
+                console.warn(`⚠️ [${this.agentId}] Validation Error: ${validation.errors?.join(', ')}`);
+                const error = JMSMessageBuilder.createError(this.agentId, message, 'JMS-422', validation.errors?.join(', ') || 'Schema validation failed');
+                await this.transport.send(message.agent, error);
+                return;
+            }
+            if (this.performanceMode) BaseAgentB.validatedRefs.add(message.ref);
         }
 
         const data = message.data as T;

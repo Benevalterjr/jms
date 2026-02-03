@@ -41,14 +41,16 @@ export class MockTransport implements IJMTSTransport {
                 }
             }, 50);
         } else {
-            // ERROR HANDLING: Handle agents not found (Dead Letter Queue)
-            const errorMsg = `⚠️ [Transport] Target agent '${targetAgent}' not found. Message sent to DLQ.`;
-            console.warn(errorMsg);
+            // BACKGROUND PROCESSING: Move logging/DLQ out of critical path
+            setImmediate(() => {
+                const errorMsg = `⚠️ [Transport] Target agent '${targetAgent}' not found. Message sent to DLQ.`;
+                console.warn(errorMsg);
 
-            MockTransport.dlq.push({
-                target: targetAgent,
-                message,
-                timestamp: Date.now()
+                MockTransport.dlq.push({
+                    target: targetAgent,
+                    message,
+                    timestamp: Date.now()
+                });
             });
         }
     }
