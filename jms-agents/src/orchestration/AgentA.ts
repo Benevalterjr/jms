@@ -8,6 +8,8 @@ export class AgentA {
     private agentId = 'AgentA';
     private responses: JMSMessage[] = [];
     private transport: IJMTSTransport;
+    private consensusFinished = false;
+    private finalResult: ConsensusResult | null = null;
 
     constructor(transport: IJMTSTransport) {
         this.transport = transport;
@@ -18,14 +20,15 @@ export class AgentA {
             // 1. Verify Integrity
             if (!SecurityUtils.verifyHash(message, message.security.hash)) {
                 console.error(`🔒 [AgentA] Security Alert: Received message with invalid hash! From: ${message.agent}`);
-                return; // Drop malicious message
+                return;
             }
 
-            if (message.Ω !== 'consensus') {
+            if (message.Ω === 'analysis') {
                 this.responses.push(message);
-            } else if (message.data && message.data.decision) {
-                const res = message.data as ConsensusResult;
-                console.log(`🏁 [AgentA] Final Decision Received: ${res.decision} (Score: ${res.score.toFixed(3)})`);
+            } else if (message.Ω === 'consensus' || (message.data && (message.data as any).decision)) {
+                this.finalResult = message.data as ConsensusResult;
+                console.log(`🏁 [AgentA] Final Decision Received: ${this.finalResult.decision} (Score: ${this.finalResult.score.toFixed(3)})`);
+                this.consensusFinished = true;
             }
         });
     }
@@ -37,8 +40,11 @@ export class AgentA {
         domain: string = 'Generic::Task',
         schema: string = 'jms.generic.task.v1',
         quorumOverride?: { expected: number, minimum: number }
-    ): Promise<void> {
+    ): Promise<ConsensusResult | null> {
         this.responses = [];
+        this.consensusFinished = false;
+        this.finalResult = null;
+
         const request = JMSMessageBuilder.create({
             ref: `task#${SecurityUtils.generateNonce().substring(0, 8)}`,
             agent: this.agentId,
@@ -53,18 +59,12 @@ export class AgentA {
 
         await this.transport.broadcast(agentsB, request);
 
-        // Wait for quorum (with timeout)
-        const deadline = request.deadline_ms || 3000;
+        const deadline = request.deadline_ms || 5000;
         const start = Date.now();
 
-        // Dynamic wait logic: Finish as soon as we hit EXPECTED, or timeout if we at least hit MINIMUM
         while ((Date.now() - start) < deadline) {
             if (this.responses.length >= request.quorum.expected) break;
-
-            // Optional: If in real-time mode, we could break at 'minimum' too
-            // if (this.responses.length >= request.quorum.minimum && SecurityUtils.currentLevel === SecurityLevel.NONE) break;
-
-            await new Promise(resolve => setTimeout(resolve, 10)); // Faster polling for perf
+            await new Promise(resolve => setTimeout(resolve, 20));
         }
 
         if (this.responses.length >= request.quorum.minimum) {
@@ -74,6 +74,14 @@ export class AgentA {
                 this.responses
             );
             await this.transport.send(agentC, forwardMsg);
+
+            // Wait for final consensus from C
+            while ((Date.now() - start) < deadline + 2000) {
+                if (this.consensusFinished) break;
+                await new Promise(resolve => setTimeout(resolve, 20));
+            }
         }
+
+        return this.finalResult;
     }
 }

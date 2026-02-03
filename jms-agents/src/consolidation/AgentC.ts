@@ -13,7 +13,10 @@ export interface AgentCConfig {
     margin?: number;
     weights?: Record<string, number>;
     strict?: boolean;
-    samplingRate?: number; // 0.0 to 1.0
+    samplingRate?: number; // 0.0 to 1.0 (initial batch)
+    dynamicSampling?: boolean;
+    entropyThreshold?: number; // Variance limit before expansion
+    qualityPriority?: boolean; // Prioritize high-lambda agents for expansion
 }
 
 export class AgentC {
@@ -30,7 +33,10 @@ export class AgentC {
             margin: config.margin ?? 0.05,
             weights: config.weights ?? {},
             strict: config.strict ?? false,
-            samplingRate: config.samplingRate ?? 1.0
+            samplingRate: config.samplingRate ?? 1.0,
+            dynamicSampling: config.dynamicSampling ?? false,
+            entropyThreshold: config.entropyThreshold ?? 0.05,
+            qualityPriority: config.qualityPriority ?? false
         };
     }
 
@@ -41,6 +47,14 @@ export class AgentC {
                 await this.processConsensus(message);
             }
         });
+    }
+
+    private calculateEntropy(messages: JMSMessage[]): number {
+        const scores = messages.map(m => m.data.score || 0);
+        if (scores.length < 2) return 0;
+        const mean = scores.reduce((a, b) => a + b) / scores.length;
+        const variance = scores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / scores.length;
+        return variance;
     }
 
     private async processConsensus(message: JMSMessage) {
@@ -61,25 +75,51 @@ export class AgentC {
             return;
         }
 
-        let analyses = message.data as JMSMessage[];
+        const allAnalyses = message.data as JMSMessage[];
+        let currentAnalyses: JMSMessage[] = [];
+        let initialSampleSize = allAnalyses.length;
+        let stages = 1;
+        let entropy = 0;
 
-        // 3. SCALABILITY: Sampling
-        if (this.config.samplingRate < 1.0 && analyses.length > 10) {
-            const sampleSize = Math.max(10, Math.floor(analyses.length * this.config.samplingRate));
-            analyses = analyses.sort(() => 0.5 - Math.random()).slice(0, sampleSize);
-            console.log(`⚖️ [AgentC] Sampling active: processing ${sampleSize}/${message.data.length} agents.`);
+        // 3. SCALABILITY: Dynamic & Quality Sampling
+        if (this.config.samplingRate < 1.0 && allAnalyses.length > 10) {
+            initialSampleSize = Math.max(10, Math.floor(allAnalyses.length * this.config.samplingRate));
+
+            // Sort pool based on quality priority if enabled
+            const pool = [...allAnalyses];
+            if (this.config.qualityPriority) {
+                // Keep highest lambda agents for the top of the pool
+                pool.sort((a, b) => b.λ - a.λ);
+            } else {
+                pool.sort(() => 0.5 - Math.random());
+            }
+
+            currentAnalyses = pool.slice(0, initialSampleSize);
+            entropy = this.calculateEntropy(currentAnalyses);
+
+            if (this.config.dynamicSampling) {
+                while (entropy > this.config.entropyThreshold && currentAnalyses.length < allAnalyses.length) {
+                    stages++;
+                    const expansionSize = Math.ceil(allAnalyses.length * 0.1); // Add 10% more
+                    const nextBatch = pool.slice(currentAnalyses.length, currentAnalyses.length + expansionSize);
+                    currentAnalyses = [...currentAnalyses, ...nextBatch];
+                    entropy = this.calculateEntropy(currentAnalyses);
+
+                    const avgLambda = currentAnalyses.reduce((sum, m) => sum + m.λ, 0) / currentAnalyses.length;
+                    console.log(`⚖️ [AgentC] Stage ${stages}: Sample increased to ${currentAnalyses.length}. Entropy: ${entropy.toFixed(4)}. Avg λ: ${avgLambda.toFixed(2)}`);
+                }
+            }
+            console.log(`⚖️ [AgentC] Consensus finalized: ${currentAnalyses.length}/${allAnalyses.length} agents in ${stages} stages.`);
+        } else {
+            currentAnalyses = allAnalyses;
+            entropy = this.calculateEntropy(currentAnalyses);
         }
 
-        // 4. SCALABILITY: Bubbling (Recursive depth support)
-        // If an input is already a ConsensusResult (not raw score), the engine handles it.
-        // We ensure data is normalized for the engine.
-
-        // Use CognitiveAggregator from jms-learning to get adjustments
-        const adjustment = CognitiveAggregator.getAjustmentCallback(analyses);
-
-        const score = ConsensusEngine.calculate(analyses, this.config.weights, adjustment);
-        const confidence = ConsensusEngine.calculateConfidence(analyses, score);
-        const lists = ConsensusEngine.getAgentLists(analyses);
+        // 4. Consensus Calculation
+        const adjustment = CognitiveAggregator.getAjustmentCallback(currentAnalyses);
+        const score = ConsensusEngine.calculate(currentAnalyses, this.config.weights, adjustment);
+        const confidence = ConsensusEngine.calculateConfidence(currentAnalyses, score);
+        const lists = ConsensusEngine.getAgentLists(currentAnalyses);
 
         const decisionResult: ConsensusResult = {
             decision: ConsensusEngine.makeDecision(score, this.config.threshold, this.config.margin),
@@ -87,7 +127,13 @@ export class AgentC {
             confidence: confidence,
             contributing_agents: lists.contributing,
             excluded_agents: lists.excluded,
-            rationale: `Consensus reached with ${analyses.length} signals (Hierarchical Ready).`
+            rationale: `Consensus reached with ${currentAnalyses.length} signals (Quality Expansion: ${this.config.qualityPriority}).`,
+            sampling_metadata: {
+                initial_sample: initialSampleSize,
+                final_sample: currentAnalyses.length,
+                entropy: entropy,
+                stages: stages
+            }
         };
 
         const response = JMSMessageBuilder.createResponse(
@@ -96,7 +142,7 @@ export class AgentC {
             decisionResult,
             confidence,
             message.schema,
-            undefined, // no evolution for C
+            undefined,
             'k=2'
         );
 

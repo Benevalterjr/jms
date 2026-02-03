@@ -73,4 +73,10 @@ export interface ConsensusResult {
     contributing_agents: string[];
     excluded_agents: string[];
     rationale: string;
+    sampling_metadata?: {
+        initial_sample: number;
+        final_sample: number;
+        entropy: number;
+        stages: number;
+    };
 }
