@@ -1,0 +1,14 @@
+{
+  "name": "jms-project",
+  "version": "1.0.0",
+  "description": "JMS Protocol Modular Project",
+  "private": true,
+  "scripts": {
+    "demo:modular": "ts-node examples/modular_demo.ts"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "@types/node": "^20.11.0"
+  }
+}

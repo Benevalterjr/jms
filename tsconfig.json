@@ -1,0 +1,29 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "CommonJS",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "strict": true,
+        "baseUrl": ".",
+        "paths": {
+            "@jms/core/*": [
+                "jms-core/src/*"
+            ],
+            "@jms/transport/*": [
+                "jms-transport/src/*"
+            ],
+            "@jms/learning/*": [
+                "jms-learning/src/*"
+            ],
+            "@jms/agents/*": [
+                "jms-agents/src/*"
+            ],
+            "@jms/sdk-ts/*": [
+                "jms-sdk/typescript/*"
+            ]
+        }
+    }
+}

@@ -1,40 +1,35 @@
 # Contributing to JMS
 
-We are excited that you want to contribute to the Joint Message System! 
+We are excited that you want to contribute to the **Joint Message System (JMS)**! 
 
-JMS is a protocol for the future of decentralized intelligence, and its strength comes from the diversity of its contributors.
+## Philosophy
 
-## How Can I Contribute?
+JMS is a protocol designed for high-trust, decentralized cognitive consensus. Our development philosophy is:
+- **Modularity:** Keep core logic independent of transport and specific agent logic.
+- **Security-First:** Every protocol change must be analyzed for integrity and resilience.
+- **Auditable:** Decisions and analytical paths must be clear and traceable.
 
-### 1. Reporting Bugs
-- Use GitHub Issues to report bugs.
-- Provide a clear reproduction case (preferably using the TypeScript MVP).
-- Highlight if the bug violates the **JMS v1.0 Normative Specification**.
+## Project Structure
 
-### 2. Proposing Changes (RFCs)
-- Changes to the core protocol (v1.x) require a formal RFC.
-- RFCs should be submitted as PRs to the `spec/` directory.
-- Ensure any math or logic changes include an impact analysis on the **Lambda (λ) weighting**.
+- `jms-spec/`: Normative documents. Changes here require an RFC process.
+- `jms-core/`: The heart of the protocol. Changes must preserve consensus determinism.
+- `jms-learning/`: Experiments with cognitive analysis and learning signals.
+- `jms-transport/`: Interface-based transport adapters.
+- `jms-agents/`: Optimized scaffolding for building your own agents.
 
-### 3. Implementation
-- We are looking for official implementations in:
-  - **Go** (`jms-go`)
-  - **Python** (`jms-py`)
-  - **Rust** (`jms-rs`)
-- Follow the **Conformance Checklist** in Seção 10.2 of the Spec.
+## Development Workflow
+
+1. **Fork the repository** and create your branch from `main`.
+2. **Implement your changes** following the modular pattern.
+3. **Verify with demos**: Ensure your changes don't break the cognitive resilence demos in `examples/`.
+4. **Submit a Pull Request** describing the impact on the protocol semantics.
 
 ## Coding Standards
 
-- **Consistency:** All implementations MUST strictly match the canonical JSON hashing specified in Section 7.1.
-- **Security:** Never commit secrets. Always use TLS 1.2+ for transport implementations.
-- **Tests:** Any new logic must include unit tests and, if possible, a scenario in the `examples/` folder.
+- Use **TypeScript** for the reference implementation.
+- Avoid external and opaque dependencies in the `jms-core`.
+- Maintain clean, descriptive, and Greek-letter-friendly (`λ`, `Σ`, `Ω`, `τ`, `ε`) naming conventions where appropriate to align with the core spec.
 
-## Community & Conduct
+## Licensing
 
-Please be respectful. JMS is a collaboration between humans and AI agents. We value logic, clarity, and constructive criticism.
-
----
-
-## License
-
-By contributing, you agree that your contributions will be licensed under the project's **Apache License 2.0**.
+By contributing, you agree that your contributions will be licensed under the **Apache License 2.0**.

@@ -36,6 +36,20 @@ This specification defines:
 6. **Security requirements (mandatory)**
 7. **Timeout and quorum mechanisms**
 8. **Optional extensions (learning, advanced security)**
+9. **Modular Architecture (JMS-M)**
+
+### 1.3 Modular Architecture (JMS-M)
+
+JMS 1.0 follows a decentralized architecture to ensure scalability and separation of concerns:
+
+| Module | Responsibility |
+|--------|----------------|
+| **JMS-Spec** | Normative documents, RFCs, and semantic definitions. |
+| **JMS-Core** | Consensus engine primitives, message validation, and core types. |
+| **JMS-Transport** | Abstraction layer (JMS-T) for network distribution. |
+| **JMS-Agents** | Standard templates for Orchestration, Analysis, and Consolidation. |
+| **JMS-Learning** | The "Evolution Layer" providing cognitive signals and adjustment logic. |
+| **JMS-SDK** | Unified developer experience (DX) for protocol implementation. |
 
 ### 1.2 Terminology
 
@@ -71,6 +85,10 @@ This specification defines:
   "schema": "jms.finance.equity.analysis.v1",
   "λ": 0.85,
   "τ": "k=1",
+  "evolution": [
+    { "timestamp": 1738517830, "score": 0.8, "λ": 0.5, "rationale": "Initial check" },
+    { "timestamp": 1738517834, "score": 0.85, "λ": 1.0, "rationale": "Deep scan complete" }
+  ],
   "security": {
     "hash": "sha256:a3f2...",
     "nonce": "7f3e9a2b",
@@ -253,9 +271,13 @@ This specification defines:
 - **Function:** Version number for message updates
 - **Default:** `1`
 
-#### `supersedes` (Superseded Message)
-- **Type:** `string`
-- **Function:** Reference to previous message being replaced
+#### `evolution` (Opinion History)
+- **Type:** `array` of `OpinionState`
+- **Function:** Tracks the internal cognitive process of the agent
+- **Fields:** `timestamp`, `score`, `λ`, `rationale`
+- **Rules:**
+  - Recommended for `k=1` analytical messages
+  - Enables trajectory analysis in AgentC
 
 ---
 
@@ -321,6 +343,14 @@ Content-Length: 512
 - **JMS-T/WebSocket** - For real-time bidirectional
 
 > Extended transports MUST maintain JMS message semantics
+
+### 3.4 Resilience and Reliability (Draft)
+
+To ensure production-grade reliability, transport implementations SHOULD follow these patterns:
+
+1. **Dead Letter Queue (DLQ)**: Undeliverable messages MUST be isolated in a DLQ for inspection and manual recovery.
+2. **Retry Mechanism**: Transports SHOULD implement idempotent retries for transient failures or late-joined agents.
+3. **Explicit Serialization**: Transports MUST NOT rely on shared memory; messages MUST be serialized/deserialized to simulate network boundaries.
 
 ---
 
@@ -644,6 +674,33 @@ calibration_factor = actual_accuracy / claimed_confidence
 ```
 
 Agents with poor calibration are automatically down-weighted.
+
+### 9.4 Opinion Stability Analysis
+
+The evolution layer tracks the variance of an agent's opinion over time. 
+
+- **Stability (S) ∈ [0.1, 1.0]**
+- **Penalty:** If $S < 0.7$, weight $w_i$ is reduced by $1.0 - S$.
+- **Rationale:** Erratic opinions represent lower cognitive maturity.
+
+### 9.5 Cognitive Trajectory Analysis
+
+Analyzes the "path" to the final score:
+
+- **Persistent Boost:** Agents with stable, non-wavering opinions receive a weight boost of up to 20%.
+- **Fluctuation Penalty:** Agents with drastic score changes are penalized up to 30%.
+- **Convergence Reward:** Agents showing clear refinement toward a score are rewarded.
+
+### 9.6 Blind Conformity Detection (Anti-Echo)
+
+Identifies clusters of agents with suspiciously similar responses and evolution patterns.
+
+- **Detection Heuristics:**
+  - `dist(score_i, score_j) < 0.01`
+  - `abs(timestamp_i - timestamp_j) < 100ms`
+  - `evolution_i.length == evolution_j.length`
+- **Mitigation:** The effective weight for the cluster is $W_{total} / \text{count}$.
+- **Reward:** Outlier agents with high stability receive an **Expert Divergence Boost**.
 
 ---
 

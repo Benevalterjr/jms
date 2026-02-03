@@ -25,11 +25,11 @@ export abstract class BaseAgentB {
         });
     }
 
-    private async processRequest(message: JMSMessage) {
+    protected async processRequest(message: JMSMessage) {
         const application = message.data as CreditApplication;
 
         // 1. Execute Analysis (Logic defined in subclass)
-        const result = this.analyze(application);
+        const { result, evolution } = await this.analyze(application);
 
         // 2. Validate Own Output
         const validation = JMSValidator.validate('jms.finance.credit.analysis.v1', result);
@@ -41,7 +41,8 @@ export abstract class BaseAgentB {
                 message,
                 result,
                 this.lambda,
-                'jms.finance.credit.analysis.v1'
+                'jms.finance.credit.analysis.v1',
+                evolution
             );
         } else {
             console.error(`❌ [${this.agentId}] Output validation failed:`, validation.errors);
@@ -58,5 +59,8 @@ export abstract class BaseAgentB {
         await JMSTransport.send(message.agent, response);
     }
 
-    protected abstract analyze(app: CreditApplication): { score: number; rationale: string; metrics?: any };
+    protected abstract analyze(app: CreditApplication): Promise<{
+        result: { score: number; rationale: string; metrics?: any };
+        evolution?: any[];
+    }>;
 }
