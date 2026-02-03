@@ -2,9 +2,9 @@ import {
     AgentA,
     AgentC,
     BaseAgentB,
-    MockTransport,
-    CreditApplication
+    MockTransport
 } from '../jms-sdk/typescript/index';
+import { CreditApplication } from './domain_types';
 
 /**
  * Modular Demo

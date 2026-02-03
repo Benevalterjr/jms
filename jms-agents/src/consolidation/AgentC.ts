@@ -4,12 +4,27 @@ import { ConsensusEngine } from '../../../jms-core/src/core/consensus';
 import { IJMTSTransport } from '../../../jms-transport/src/transport';
 import { CognitiveAggregator } from '../../../jms-learning/src/learning/aggregator';
 
-export class AgentC {
-    private agentId = 'AgentC';
-    private transport: IJMTSTransport;
+export interface AgentCConfig {
+    agentId?: string;
+    threshold?: number;
+    margin?: number;
+    weights?: Record<string, number>;
+}
 
-    constructor(transport: IJMTSTransport) {
+export class AgentC {
+    private agentId: string;
+    private transport: IJMTSTransport;
+    private config: Required<AgentCConfig>;
+
+    constructor(transport: IJMTSTransport, config: AgentCConfig = {}) {
         this.transport = transport;
+        this.agentId = config.agentId || 'AgentC';
+        this.config = {
+            agentId: this.agentId,
+            threshold: config.threshold ?? 0.7,
+            margin: config.margin ?? 0.05,
+            weights: config.weights ?? {}
+        };
     }
 
     public listen() {
@@ -23,17 +38,16 @@ export class AgentC {
 
     private async processConsensus(message: JMSMessage) {
         const analyses = message.data as JMSMessage[];
-        const weights = { 'stat_analysis': 1.0 };
 
         // Use CognitiveAggregator from jms-learning to get adjustments
         const adjustment = CognitiveAggregator.getAjustmentCallback(analyses);
 
-        const score = ConsensusEngine.calculate(analyses, weights, adjustment);
+        const score = ConsensusEngine.calculate(analyses, this.config.weights, adjustment);
         const confidence = ConsensusEngine.calculateConfidence(analyses, score);
         const lists = ConsensusEngine.getAgentLists(analyses);
 
         const decisionResult: ConsensusResult = {
-            decision: ConsensusEngine.makeDecision(score, 0.7, 0.05),
+            decision: ConsensusEngine.makeDecision(score, this.config.threshold, this.config.margin),
             score: score,
             confidence: confidence,
             contributing_agents: lists.contributing,
@@ -46,7 +60,7 @@ export class AgentC {
             message,
             decisionResult,
             confidence,
-            'jms.finance.credit.decision.v1'
+            message.schema // Maintain schema continuity
         );
         response.τ = 'k=2';
 

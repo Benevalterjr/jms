@@ -1,4 +1,4 @@
-import { JMSMessage, CreditApplication, ConsensusResult } from '../../../jms-core/src/types/jms';
+import { JMSMessage, ConsensusResult } from '../../../jms-core/src/types/jms';
 import { JMSMessageBuilder } from '../../../jms-core/src/core/message';
 import { IJMTSTransport } from '../../../jms-transport/src/transport';
 import { JMSValidator } from '../../../jms-core/src/core/validator';
@@ -22,28 +22,35 @@ export class AgentA {
         });
     }
 
-    async runProcess(application: CreditApplication, agentsB: string[], agentC: string): Promise<void> {
+    async runProcess(
+        data: any,
+        agentsB: string[],
+        agentC: string,
+        domain: string = 'Generic::Task',
+        schema: string = 'jms.generic.task.v1'
+    ): Promise<void> {
         this.responses = [];
         const request = JMSMessageBuilder.createRequest(
             this.agentId,
-            'Finance::Credit',
-            'stat_analysis',
-            application,
-            'jms.finance.credit.context.v1'
+            domain,
+            'analysis',
+            data,
+            schema
         );
 
         await this.transport.broadcast(agentsB, request);
 
-        // Wait for quorum
+        // Wait for quorum (with timeout)
+        const deadline = request.deadline_ms || 3000;
         const start = Date.now();
-        while (this.responses.length < request.quorum.expected && (Date.now() - start) < 3000) {
+        while (this.responses.length < request.quorum.expected && (Date.now() - start) < deadline) {
             await new Promise(resolve => setTimeout(resolve, 50));
         }
 
         if (this.responses.length >= request.quorum.minimum) {
             const forwardMsg = JMSMessageBuilder.createConsensusRequest(
                 this.agentId,
-                'Finance::Credit',
+                domain,
                 this.responses
             );
             await this.transport.send(agentC, forwardMsg);

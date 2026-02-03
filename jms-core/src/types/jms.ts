@@ -57,14 +57,7 @@ export interface MessageParams {
     quorum?: QuorumConfig;
 }
 
-export interface CreditApplication {
-    applicant_id: string;
-    credit_score: number;
-    annual_income: number;
-    loan_amount: number;
-    monthly_debt: number;
-    monthly_income: number;
-}
+// Domain types moved to domain-specific files (e.g. examples/domain_types.ts)
 
 export interface AnalysisResult {
     score: number;

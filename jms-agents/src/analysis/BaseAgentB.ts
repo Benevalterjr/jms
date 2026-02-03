@@ -1,9 +1,9 @@
-import { JMSMessage, CreditApplication } from '../../../jms-core/src/types/jms';
+import { JMSMessage } from '../../../jms-core/src/types/jms';
 import { JMSMessageBuilder } from '../../../jms-core/src/core/message';
 import { IJMTSTransport } from '../../../jms-transport/src/transport';
 import { JMSValidator } from '../../../jms-core/src/core/validator';
 
-export abstract class BaseAgentB {
+export abstract class BaseAgentB<T = any> {
     protected abstract agentId: string;
     protected abstract lambda: number;
     protected transport: IJMTSTransport;
@@ -20,22 +20,22 @@ export abstract class BaseAgentB {
     }
 
     protected async processRequest(message: JMSMessage) {
-        const application = message.data as CreditApplication;
-        const { result, evolution } = await this.analyze(application);
+        const data = message.data as T;
+        const { result, evolution } = await this.analyze(data);
 
         const response = JMSMessageBuilder.createResponse(
             this.agentId,
             message,
             result,
             this.lambda,
-            'jms.finance.credit.analysis.v1',
+            message.schema, // Reuse incoming schema or provide default
             evolution
         );
 
         await this.transport.send(message.agent, response);
     }
 
-    protected abstract analyze(app: CreditApplication): Promise<{
+    protected abstract analyze(data: T): Promise<{
         result: { score: number; rationale: string; metrics?: any };
         evolution?: any[];
     }>;
