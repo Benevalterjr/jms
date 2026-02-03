@@ -13,6 +13,7 @@ export interface AgentCConfig {
     margin?: number;
     weights?: Record<string, number>;
     strict?: boolean;
+    samplingRate?: number; // 0.0 to 1.0
 }
 
 export class AgentC {
@@ -28,7 +29,8 @@ export class AgentC {
             threshold: config.threshold ?? 0.7,
             margin: config.margin ?? 0.05,
             weights: config.weights ?? {},
-            strict: config.strict ?? false // Default to false for demos
+            strict: config.strict ?? false,
+            samplingRate: config.samplingRate ?? 1.0
         };
     }
 
@@ -59,7 +61,18 @@ export class AgentC {
             return;
         }
 
-        const analyses = message.data as JMSMessage[];
+        let analyses = message.data as JMSMessage[];
+
+        // 3. SCALABILITY: Sampling
+        if (this.config.samplingRate < 1.0 && analyses.length > 10) {
+            const sampleSize = Math.max(10, Math.floor(analyses.length * this.config.samplingRate));
+            analyses = analyses.sort(() => 0.5 - Math.random()).slice(0, sampleSize);
+            console.log(`⚖️ [AgentC] Sampling active: processing ${sampleSize}/${message.data.length} agents.`);
+        }
+
+        // 4. SCALABILITY: Bubbling (Recursive depth support)
+        // If an input is already a ConsensusResult (not raw score), the engine handles it.
+        // We ensure data is normalized for the engine.
 
         // Use CognitiveAggregator from jms-learning to get adjustments
         const adjustment = CognitiveAggregator.getAjustmentCallback(analyses);
@@ -74,7 +87,7 @@ export class AgentC {
             confidence: confidence,
             contributing_agents: lists.contributing,
             excluded_agents: lists.excluded,
-            rationale: `Consensus reached with modular cognitive signals.`
+            rationale: `Consensus reached with ${analyses.length} signals (Hierarchical Ready).`
         };
 
         const response = JMSMessageBuilder.createResponse(

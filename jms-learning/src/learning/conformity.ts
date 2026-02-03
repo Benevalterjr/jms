@@ -3,38 +3,39 @@ import { JMSMessage } from '../../../jms-core/src/types/jms';
 export class ConformityDetection {
     /**
      * Detects groups of agents with suspiciously identical outputs.
+     * O(N) implementation using bucketing.
      */
     static detectClusters(messages: JMSMessage[]): string[][] {
-        const clusters: string[][] = [];
-        const checked = new Set<string>();
         const validMsgs = messages.filter(m => m.ε === null);
+        if (validMsgs.length < 2) return [];
 
-        for (let i = 0; i < validMsgs.length; i++) {
-            const a = validMsgs[i];
-            if (checked.has(a.agent)) continue;
+        // Bucket by: Quantized Score (0.01 resolution) + Evolution Length
+        const buckets = new Map<string, string[]>();
 
-            const cluster = [a.agent];
-            for (let j = i + 1; j < validMsgs.length; j++) {
-                const b = validMsgs[j];
-                if (this.isSuspiciouslySimilar(a, b)) {
-                    cluster.push(b.agent);
-                    checked.add(b.agent);
-                }
+        for (const msg of validMsgs) {
+            const score = msg.data.score || 0;
+            const quantizedScore = Math.round(score * 100); // 0.01 precision
+            const evolutionLen = msg.evolution?.length || 0;
+
+            // We use a "loose" key. For full O(N), we can't do fuzzy time match easily without N^2,
+            // but we can bucket by time window (e.g. 100ms blocks)
+            const timeBucket = Math.floor(msg.security.timestamp / 100);
+
+            const key = `s:${quantizedScore}|e:${evolutionLen}|t:${timeBucket}`;
+
+            if (!buckets.has(key)) {
+                buckets.set(key, []);
             }
+            buckets.get(key)!.push(msg.agent);
+        }
 
-            if (cluster.length > 1) {
-                clusters.push(cluster);
+        const clusters: string[][] = [];
+        for (const agents of buckets.values()) {
+            if (agents.length > 1) {
+                clusters.push(agents);
             }
         }
+
         return clusters;
-    }
-
-    private static isSuspiciouslySimilar(a: JMSMessage, b: JMSMessage): boolean {
-        const scoreDiff = Math.abs((a.data.score || 0) - (b.data.score || 0));
-        const timeDiff = Math.abs(a.security.timestamp - b.security.timestamp);
-
-        // If score is nearly identical AND response time is nearly identical
-        // AND "depth of thought" (evolution) is the same...
-        return scoreDiff < 0.01 && timeDiff < 100 && (a.evolution?.length || 0) === (b.evolution?.length || 0);
     }
 }
