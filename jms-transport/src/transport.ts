@@ -8,6 +8,14 @@ export interface IJMTSTransport {
 
 /**
  * Mock Transport Implementation
+ * 
+ * ⚠️ WARNING: This implementation is for DEMONSTRATION purposes only.
+ * It uses in-memory callbacks and local timeouts to simulate network behavior.
+ * 
+ * For PRODUCTION environments, implement IJMTSTransport using:
+ * - Message Brokers (Apache Kafka, RabbitMQ)
+ * - Remote Procedure Calls (gRPC)
+ * - Distributed Queues (SQS, Redis)
  */
 export class MockTransport implements IJMTSTransport {
     private static listeners: Map<string, (message: string) => Promise<void>> = new Map();

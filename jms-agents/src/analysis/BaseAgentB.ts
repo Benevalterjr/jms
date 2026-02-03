@@ -8,6 +8,7 @@ export abstract class BaseAgentB<T = any> {
     protected abstract agentId: string;
     protected abstract lambda: number;
     protected transport: IJMTSTransport;
+    protected isStrict: boolean = false; // Default to lenient for demos
 
     constructor(transport: IJMTSTransport) {
         this.transport = transport;
@@ -31,7 +32,7 @@ export abstract class BaseAgentB<T = any> {
         }
 
         // 2. Schema Validation
-        const validation = JMSValidator.validate(message.schema, message.data);
+        const validation = JMSValidator.validate(message.schema, message.data, this.isStrict);
         if (!validation.valid) {
             console.warn(`⚠️ [${this.agentId}] Validation Error: ${validation.errors?.join(', ')}`);
             const error = JMSMessageBuilder.createError(this.agentId, message, 'JMS-422', validation.errors?.join(', ') || 'Schema validation failed');

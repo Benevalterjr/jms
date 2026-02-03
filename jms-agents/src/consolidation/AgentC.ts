@@ -12,6 +12,7 @@ export interface AgentCConfig {
     threshold?: number;
     margin?: number;
     weights?: Record<string, number>;
+    strict?: boolean;
 }
 
 export class AgentC {
@@ -26,7 +27,8 @@ export class AgentC {
             agentId: this.agentId,
             threshold: config.threshold ?? 0.7,
             margin: config.margin ?? 0.05,
-            weights: config.weights ?? {}
+            weights: config.weights ?? {},
+            strict: config.strict ?? false // Default to false for demos
         };
     }
 
@@ -49,7 +51,7 @@ export class AgentC {
         }
 
         // 2. Schema Validation (Consensus Payload)
-        const validation = JMSValidator.validate(message.schema, message.data);
+        const validation = JMSValidator.validate(message.schema, message.data, this.config.strict);
         if (!validation.valid) {
             console.warn(`⚠️ [AgentC] Validation Error: ${validation.errors?.join(', ')}`);
             const error = JMSMessageBuilder.createError(this.agentId, message, 'JMS-422', validation.errors?.join(', ') || 'Schema validation failed');
