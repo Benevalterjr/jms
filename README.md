@@ -46,6 +46,26 @@ npx ts-node examples/modular_demo.ts
 
 ---
 
+
+## 📈 Quick Test with yfinance (Market Assets)
+
+Use Python + `yfinance` to fetch real asset snapshots and run JMS consensus:
+
+```bash
+# 1) install Python dependency
+pip install yfinance
+
+# 2) fetch asset snapshots (examples for Brazil + US)
+python examples/yfinance_fetch.py --symbols PETR4.SA VALE3.SA ITUB4.SA AAPL MSFT
+
+# 3) run JMS consensus on generated data
+npx ts-node examples/yfinance_assets_demo.ts examples/data/assets.json
+```
+
+This demo combines three analysis agents (trend, risk, momentum) and consolidates a final weighted decision with AgentC.
+
+---
+
 ## 🧠 Why JMS?
 
 > "If a decision is made in the chaos, JMS ensures it represents the most credible path."
