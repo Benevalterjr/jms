@@ -1,0 +1,29 @@
+[
+  {
+    "symbol": "PETR4.SA",
+    "close": 38.12,
+    "sma_5": 37.9,
+    "sma_20": 36.7,
+    "daily_return_pct": 1.42,
+    "volatility_20d_pct": 3.1,
+    "volume": 24500100
+  },
+  {
+    "symbol": "VALE3.SA",
+    "close": 62.55,
+    "sma_5": 62.0,
+    "sma_20": 61.2,
+    "daily_return_pct": 0.77,
+    "volatility_20d_pct": 2.7,
+    "volume": 18800300
+  },
+  {
+    "symbol": "AAPL",
+    "close": 195.21,
+    "sma_5": 194.2,
+    "sma_20": 196.0,
+    "daily_return_pct": -0.42,
+    "volatility_20d_pct": 1.9,
+    "volume": 51234000
+  }
+]
